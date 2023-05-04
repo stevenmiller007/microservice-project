@@ -1,110 +1,87 @@
-version: '2'
-
+version: '3'
 services:
   config-server:
-    image: springcommunity/spring-petclinic-config-server
-    container_name: config-server
-    mem_limit: 512M
+    image: "{{ .Values.IMAGE_TAG_CONFIG_SERVER }}"
     ports:
      - 8888:8888
-
+    labels:
+      kompose.image-pull-secret: "regcred"
   discovery-server:
-    image: springcommunity/spring-petclinic-discovery-server
-    container_name: discovery-server
-    mem_limit: 512M
-    depends_on:
-      - config-server
-    entrypoint: ["./dockerize","-wait=tcp://config-server:8888","-timeout=60s","--","java", "-Djava.security.egd=file:/dev/./urandom","-jar","/app.jar"]
+    image: "{{ .Values.IMAGE_TAG_DISCOVERY_SERVER }}"
     ports:
      - 8761:8761
-
+    labels:
+      kompose.image-pull-secret: "regcred"
   customers-service:
-    image: springcommunity/spring-petclinic-customers-service
-    container_name: customers-service
-    mem_limit: 512M
-    depends_on:
-     - config-server
-     - discovery-server
-    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "-Djava.security.egd=file:/dev/./urandom","-jar","/app.jar"]
+    image: "{{ .Values.IMAGE_TAG_CUSTOMERS_SERVICE }}"
+    deploy:
+      replicas: 2
     ports:
     - 8081:8081
-
+    labels:
+      kompose.image-pull-secret: "regcred"
   visits-service:
-    image: springcommunity/spring-petclinic-visits-service
-    container_name: visits-service
-    mem_limit: 512M
-    depends_on:
-     - config-server
-     - discovery-server
-    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "-Djava.security.egd=file:/dev/./urandom","-jar","/app.jar"]
+    image: "{{ .Values.IMAGE_TAG_VISITS_SERVICE }}"
+    deploy:
+      replicas: 2
     ports:
      - 8082:8082
-
+    labels:
+      kompose.image-pull-secret: "regcred"
   vets-service:
-    image: springcommunity/spring-petclinic-vets-service
-    container_name: vets-service
-    mem_limit: 512M
-    depends_on:
-     - config-server
-     - discovery-server
-    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "-Djava.security.egd=file:/dev/./urandom","-jar","/app.jar"]
+    image: "{{ .Values.IMAGE_TAG_VETS_SERVICE }}"
+    deploy:
+      replicas: 2
     ports:
      - 8083:8083
-
+    labels:
+      kompose.image-pull-secret: "regcred"
   api-gateway:
-    image: springcommunity/spring-petclinic-api-gateway
-    container_name: api-gateway
-    mem_limit: 512M
-    depends_on:
-     - config-server
-     - discovery-server
-    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "-Djava.security.egd=file:/dev/./urandom","-jar","/app.jar"]
+    image: "{{ .Values.IMAGE_TAG_API_GATEWAY }}"
+    deploy:
+      replicas: 1
     ports:
      - 8080:8080
-
+    labels:
+      kompose.image-pull-secret: "regcred"
+      kompose.service.expose: "{{ .Values.DNS_NAME }}"
+      kompose.service.type: "nodeport"
+      kompose.service.nodeport.port: "30001"
   tracing-server:
     image: openzipkin/zipkin
-    container_name: tracing-server
-    mem_limit: 512M
     environment:
     - JAVA_OPTS=-XX:+UnlockExperimentalVMOptions -Djava.security.egd=file:/dev/./urandom
     ports:
      - 9411:9411
-
   admin-server:
-    image: springcommunity/spring-petclinic-admin-server
-    container_name: admin-server
-    mem_limit: 512M
-    depends_on:
-     - config-server
-     - discovery-server
-    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "-Djava.security.egd=file:/dev/./urandom","-jar","/app.jar"]
+    image: "{{ .Values.IMAGE_TAG_ADMIN_SERVER }}"
     ports:
      - 9090:9090
-
+    labels:
+      kompose.image-pull-secret: "regcred"
   hystrix-dashboard:
-    image: springcommunity/spring-petclinic-hystrix-dashboard
-    container_name: hystrix-dashboard
-    mem_limit: 512M
-    depends_on:
-     - config-server
-     - discovery-server
-    entrypoint: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "-Djava.security.egd=file:/dev/./urandom","-jar","/app.jar"]
+    image: "{{ .Values.IMAGE_TAG_HYSTRIX_DASHBOARD }}"
     ports:
      - 7979:7979
-
-  ## Grafana / Prometheus
-
+    labels:
+      kompose.image-pull-secret: "regcred"
   grafana-server:
-    build: ./docker/grafana
-    container_name: grafana-server
-    mem_limit: 256M
+    image: "{{ .Values.IMAGE_TAG_GRAFANA_SERVICE }}"
     ports:
     - 3000:3000
-
+    labels:
+      kompose.image-pull-secret: "regcred"
   prometheus-server:
-    build: ./docker/prometheus
-    container_name: prometheus-server
-    mem_limit: 256M
+    image: "{{ .Values.IMAGE_TAG_PROMETHEUS_SERVICE }}"
     ports:
     - 9091:9090
+    labels:
+      kompose.image-pull-secret: "regcred"
+
+  mysql-server:
+    image: mysql:5.7.8
+    environment: 
+      MYSQL_ROOT_PASSWORD: petclinic
+      MYSQL_DATABASE: petclinic
+    ports:
+    - 3306:3306
